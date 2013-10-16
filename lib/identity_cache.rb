@@ -61,6 +61,7 @@ module IdentityCache
       !readonly && ActiveRecord::Base.connection.open_transactions == 0
     end
 
+
     # Cache retrieval and miss resolver primitive; given a key it will try to
     # retrieve the associated value from the cache otherwise it will return the
     # value of the execution of the block.
@@ -100,6 +101,7 @@ module IdentityCache
     # +keys+ A collection of key strings
     def fetch_multi(*keys, &block)
       return {} if keys.size == 0
+
       result = {}
       result = cache.read_multi(*keys) if should_cache?
 

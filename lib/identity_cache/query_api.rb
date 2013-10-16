@@ -2,9 +2,14 @@ module IdentityCache
   module QueryAPI
     extend ActiveSupport::Concern
 
+    def ensure_cached
+      self.class.cache_object(self)
+    end
+
     included do |base|
       base.private_class_method :require_if_necessary
       base.private_class_method :coder_from_record
+      base.public_class_method :cache_object
       base.private_class_method :record_from_coder
       base.private_class_method :set_embedded_association
       base.private_class_method :get_embedded_association
@@ -12,6 +17,7 @@ module IdentityCache
       base.instance_eval(ruby = <<-CODE, __FILE__, __LINE__ + 1)
         private :expire_cache, :was_new_record?, :fetch_denormalized_cached_association,
                 :populate_denormalized_cached_association
+        public :ensure_cached
       CODE
       base.after_commit :expire_cache
       base.after_touch  :expire_cache
@@ -24,6 +30,25 @@ module IdentityCache
         raise NotImplementedError, "exists_with_identity_cache? needs the primary index enabled" unless primary_cache_index_enabled
         !!fetch_by_id(id)
       end
+
+      # Automatically cache passed object if needed
+      def cache_object(object)
+        return if object.nil?
+        
+        raise NotImplementedError, "fetching needs the primary index enabled" unless primary_cache_index_enabled
+        if IdentityCache.should_cache?
+
+          require_if_necessary do
+            coder = IdentityCache.fetch(rails_cache_key(object.id)){ coder_from_record(object) }
+            object ||= record_from_coder(coder)
+          end
+
+        else
+          puts "Nothing to be done, cache not enabled for this object"
+        end
+        object
+      end
+
 
       # Default fetcher added to the model on inclusion, it behaves like
       # ActiveRecord::Base.find_by_id

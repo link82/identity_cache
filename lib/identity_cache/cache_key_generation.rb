@@ -3,6 +3,10 @@ module IdentityCache
     extend ActiveSupport::Concern
     DEFAULT_NAMESPACE = "IDC:#{CACHE_VERSION}:".freeze
 
+    included do |base|
+      base.public_class_method :rails_cache_key
+    end
+    
     def self.schema_to_string(columns)
       columns.sort_by(&:name).map{|c| "#{c.name}:#{c.type}"}.join(',')
     end
@@ -27,13 +31,14 @@ module IdentityCache
     end
 
     module ClassMethods
+
       def rails_cache_key(id)
         "#{rails_cache_key_prefix}#{id}"
       end
 
       def rails_cache_key_prefix
         @rails_cache_key_prefix ||= IdentityCache::CacheKeyGeneration.denormalized_schema_hash(self)
-        "#{rails_cache_key_namespace}blob:#{base_class.name}:#{@rails_cache_key_prefix}:"
+        "#{rails_cache_key_namespace}:blob:#{base_class.name}:#{@rails_cache_key_prefix}:"
       end
 
       def rails_cache_index_key_for_fields_and_values(fields, values)
